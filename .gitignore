@@ -1,2 +1,33 @@
+# Python-generated files
 __pycache__/
-*.py[cod]
+*.py[oc]
+*.so
+build/
+dist/
+*.egg-info
+
+# Coverage
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv
+venv/
+env/
+
+# Tools
+.ruff_cache/
+.pytest_cache/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Local Claude settings
+.claude/settings.local.json

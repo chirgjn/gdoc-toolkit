@@ -293,6 +293,47 @@ def test_bold_skips_heading_paragraphs():
     assert reqs == []
 
 
+def test_bold_custom_keyword_labels():
+    content = [para_block(1, 30, "Summary: some text")]
+    reqs = apply_bold_to_labels(content, keyword_labels=("Summary",))
+    assert len(reqs) == 1
+    assert reqs[0]["updateTextStyle"]["range"]["endIndex"] == 1 + len("Summary")
+
+
+def test_bold_custom_keyword_labels_ignores_default():
+    # With custom keyword_labels, default keywords like "Decision" are not matched
+    # (glossary pattern may still fire — use lowercase to avoid glossary match)
+    content = [para_block(1, 30, "decision: something")]
+    reqs = apply_bold_to_labels(content, keyword_labels=("Summary",))
+    assert reqs == []
+
+
+def test_bold_custom_sub_labels():
+    content = [para_block(1, 30, "Overview: some text")]
+    reqs = apply_bold_to_labels(content, sub_labels=("Overview",))
+    assert len(reqs) == 1
+
+
+def test_bold_custom_standalone_names():
+    content = [para_block(1, 20, "MySystem core engine")]
+    reqs = apply_bold_to_labels(content, standalone_names=("MySystem",))
+    assert len(reqs) == 1
+    assert reqs[0]["updateTextStyle"]["range"]["endIndex"] == 19  # endIndex(20) - 1
+
+
+def test_bold_empty_standalone_names_skips_standalone():
+    content = [para_block(1, 30, "Ad Platform core component")]
+    reqs = apply_bold_to_labels(content, standalone_names=())
+    assert reqs == []
+
+
+def test_bold_empty_sub_labels_skips_sub_labels():
+    # "Core Concept" has no colon so won't hit the glossary pattern (rule 1)
+    content = [para_block(1, 30, "Core Concept some explanation")]
+    reqs = apply_bold_to_labels(content, sub_labels=())
+    assert reqs == []
+
+
 # --- insert_image ---
 
 def test_insert_image_no_scaling_needed():

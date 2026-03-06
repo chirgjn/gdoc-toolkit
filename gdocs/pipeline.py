@@ -5,6 +5,9 @@ from gdocs.transforms import (
     remove_blank_paragraphs as _blank_reqs,
     apply_bullets_to_fake_lists,
     apply_bold_to_labels as _bold_reqs,
+    DEFAULT_KEYWORD_LABELS,
+    DEFAULT_SUB_LABELS,
+    DEFAULT_STANDALONE_NAMES,
 )
 
 
@@ -54,9 +57,19 @@ class GDocsPipeline:
         reqs = _blank_reqs(self.content)
         self.apply(reqs)
 
-    def apply_bold(self):
-        """Apply bold to glossary terms, decision labels, tenet labels, etc."""
-        reqs = _bold_reqs(self.content)
+    def apply_bold(
+        self,
+        keyword_labels: tuple[str, ...] = DEFAULT_KEYWORD_LABELS,
+        sub_labels: tuple[str, ...] = DEFAULT_SUB_LABELS,
+        standalone_names: tuple[str, ...] = DEFAULT_STANDALONE_NAMES,
+    ):
+        """
+        Apply bold to label patterns in NORMAL_TEXT paragraphs.
+
+        Override any of the pattern collections to customise which labels get bolded.
+        Pass an empty tuple to disable a pattern group entirely.
+        """
+        reqs = _bold_reqs(self.content, keyword_labels, sub_labels, standalone_names)
         self.apply(reqs)
 
     def convert_fake_lists(self, skip_ranges: set[tuple[int, int]] | None = None):

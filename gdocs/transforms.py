@@ -4,17 +4,23 @@ from gdocs.models import get_paragraphs, get_text, get_style, is_empty, is_headi
 VALID_STYLES = {"TITLE", "HEADING_1", "HEADING_2", "HEADING_3", "NORMAL_TEXT"}
 MAX_IMAGE_WIDTH_PT = 468
 
-# System standalone names that get fully bolded when they appear as short lines
-_SYSTEM_NAMES = re.compile(r"^(Ad Platform|Offers Engine|RMP|Gratification|SSP)\b")
+# Default pattern collections — override via apply_bold_to_labels() parameters.
 
-# Sub-label keywords (from apply_bold.py)
-_SUB_LABELS = (
+# Short standalone lines starting with these names → bold entire line
+DEFAULT_STANDALONE_NAMES: tuple[str, ...] = (
+    "Ad Platform", "Offers Engine", "RMP", "Gratification", "SSP",
+)
+
+# Keywords where "KEYWORD: ..." → bold the keyword only
+DEFAULT_KEYWORD_LABELS: tuple[str, ...] = (
+    "Decision", "Background", "Rationale", "Trade-offs",
+)
+
+# Prefixes where "Label: ..." → bold the label (lower priority than glossary/keyword)
+DEFAULT_SUB_LABELS: tuple[str, ...] = (
     "Principle", "Enforcement", "Approach", "Benefit",
     "Challenge", "Core Concept", "Key tenant",
 )
-
-# Keyword labels that get their keyword bolded
-_KEYWORD_LABELS = ("Decision", "Background", "Rationale", "Trade-offs")
 
 
 def delete_range(start: int, end: int) -> dict:
@@ -178,20 +184,42 @@ def apply_bullets_to_fake_lists(
     return deletes, bullets
 
 
-def apply_bold_to_labels(content: list[dict]) -> list[dict]:
+def apply_bold_to_labels(
+    content: list[dict],
+    keyword_labels: tuple[str, ...] = DEFAULT_KEYWORD_LABELS,
+    sub_labels: tuple[str, ...] = DEFAULT_SUB_LABELS,
+    standalone_names: tuple[str, ...] = DEFAULT_STANDALONE_NAMES,
+) -> list[dict]:
     """
     Apply bold to well-known label patterns in NORMAL_TEXT paragraphs.
-    Extracted from apply_bold.py.
 
     Patterns (in priority order):
     1. Glossary: "TERM: description" → bold the term (up to colon)
     2. Risk labels: "X Risk/Complexity/Dependency:" → bold label
     3. Tenet: "Tenet N — Name" → bold full label
-    4. Keyword labels: Decision/Background/Rationale/Trade-offs → bold keyword
+    4. keyword_labels: e.g. "Decision: ..." → bold the keyword
     5. "Why X:" / "Why Not X:" → bold the why-label
-    6. System names as short standalone lines → bold entire line
-    7. Sub-labels: Principle/Enforcement/Approach/Benefit/Challenge/Core Concept/Key tenant
+    6. standalone_names: short lines starting with a known name → bold entire line
+    7. sub_labels: e.g. "Principle: ..." → bold the label prefix
+
+    Parameters
+    ----------
+    content:
+        Doc body content list (body.content from the API response).
+    keyword_labels:
+        Words where "WORD: rest" → bold just the word.
+        Defaults to DEFAULT_KEYWORD_LABELS.
+    sub_labels:
+        Prefixes where "Label ..." → bold the label (lower priority).
+        Defaults to DEFAULT_SUB_LABELS.
+    standalone_names:
+        Short standalone lines starting with one of these names → bold entire line.
+        Defaults to DEFAULT_STANDALONE_NAMES.
     """
+    standalone_re = re.compile(
+        r"^(" + "|".join(re.escape(n) for n in standalone_names) + r")\b"
+    ) if standalone_names else None
+
     requests = []
 
     def bold(start: int, end: int):
@@ -234,7 +262,7 @@ def apply_bold_to_labels(content: list[dict]) -> list[dict]:
 
         # 4. Keyword labels
         matched_kw = False
-        for kw in _KEYWORD_LABELS:
+        for kw in keyword_labels:
             if text.startswith(kw + ":"):
                 bold(s, s + len(kw))
                 matched_kw = True
@@ -248,13 +276,13 @@ def apply_bold_to_labels(content: list[dict]) -> list[dict]:
             bold(s, s + m4.end(1))
             continue
 
-        # 6. System standalone names (short lines)
-        if _SYSTEM_NAMES.match(text) and len(text) < 80:
+        # 6. Standalone names (short lines)
+        if standalone_re and standalone_re.match(text) and len(text) < 80:
             bold(s, e - 1)  # exclude trailing \n
             continue
 
         # 7. Sub-labels
-        for label in _SUB_LABELS:
+        for label in sub_labels:
             if text.startswith(label):
                 bold(s, s + len(label))
                 break
